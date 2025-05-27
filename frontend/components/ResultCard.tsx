@@ -15,7 +15,6 @@ export default function ResultCard({ item }: ResultCardProps) {
                 rounded-2xl
                 p-4
                 shadow-lg
-
                 flex flex-col gap-1 text-sm mb-2
                 backdrop-blur-sm
             "

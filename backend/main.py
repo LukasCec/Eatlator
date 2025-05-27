@@ -6,6 +6,9 @@ from langdetect import detect
 from transformers import pipeline
 import easyocr
 from fastapi.middleware.cors import CORSMiddleware
+import sqlite3
+from pydantic import BaseModel
+from typing import List
 app = FastAPI()
 
 app.add_middleware(
@@ -110,6 +113,39 @@ def process_menu_image(file_path):
         })
     return response
 
+
+DB_PATH = "recipes.db"
+
+class RecipeRequest(BaseModel):
+    ingredients: List[str]
+
+def find_recipes(ingredients: List[str], limit=2000):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    where = " AND ".join([f'ingredients LIKE "%{i}%"' for i in ingredients])
+    query = f"SELECT title, ingredients, instructions, image, calories, time FROM recipes WHERE {where} LIMIT {limit};"
+    c.execute(query)
+    recipes = c.fetchall()
+    conn.close()
+    return [
+        {
+            "title": r[0],
+            "ingredients": r[1],
+            "instructions": r[2],
+            "image": r[3],
+            "calories": r[4],
+            "time": r[5]
+        }
+        for r in recipes
+    ]
+
+@app.post("/suggest_recipes/")
+async def suggest_recipes(req: RecipeRequest):
+    if not req.ingredients:
+        return {"recipes": []}
+    recipes = find_recipes([i.lower() for i in req.ingredients])
+    return {"recipes": recipes}
+
 @app.post("/parse_menu/")
 async def parse_menu(file: UploadFile = File(...)):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
@@ -121,3 +157,5 @@ async def parse_menu(file: UploadFile = File(...)):
         return JSONResponse(content=result)
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
+
+
