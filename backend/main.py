@@ -139,6 +139,41 @@ def find_recipes(ingredients: List[str], limit=2000):
         for r in recipes
     ]
 
+
+class TitleSearchRequest(BaseModel):
+    query: str
+
+@app.post("/find_recipe_by_title/")
+async def find_recipe_by_title(req: TitleSearchRequest):
+    if not req.query or len(req.query.strip()) < 2:
+        return {"recipes": []}
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    q = req.query.strip().lower()
+
+    query = f"""
+        SELECT title, ingredients, instructions, image, calories, time
+        FROM recipes
+        WHERE LOWER(title) LIKE ? OR LOWER(ingredients) LIKE ?
+        LIMIT 200;
+    """
+    c.execute(query, (f"%{q}%", f"%{q}%"))
+    recipes = c.fetchall()
+    conn.close()
+    return {
+        "recipes": [
+            {
+                "title": r[0],
+                "ingredients": r[1],
+                "instructions": r[2],
+                "image": r[3],
+                "calories": r[4],
+                "time": r[5]
+            }
+            for r in recipes
+        ]
+    }
+
 @app.post("/suggest_recipes/")
 async def suggest_recipes(req: RecipeRequest):
     if not req.ingredients:

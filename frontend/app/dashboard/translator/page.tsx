@@ -7,9 +7,10 @@ export default function Dashboard() {
     const { user } = useUser();
     return (
         <main className="min-h-screen bg-background flex flex-col items-center">
-            <div className="w-full max-w-md relative bg-card rounded-2xl shadow-2xl p-4 mt-4">
+            <div className="w-full max-w-md relative bg-card rounded-2xl shadow-2xl p-4 mt-4 flex flex-col min-h-[calc(100vh-2rem)]">
 
-                <div className="flex items-center justify-between mb-5">
+
+            <div className="flex items-center justify-between mb-5">
                     <div>
                         <HamburgerMenu />
                     </div>

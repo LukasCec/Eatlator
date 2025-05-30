@@ -12,34 +12,34 @@ type Recipe = {
     time?: string;
 };
 
-export default function SuggestorPage() {
+export default function RecipeFinderPage() {
     const { user } = useUser();
-    const [input, setInput] = useState("");
-    const [ingredients, setIngredients] = useState<string[]>([]);
+    const [query, setQuery] = useState("");
     const [results, setResults] = useState<Recipe[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    const addIngredient = () => {
-        if (input.trim() && !ingredients.includes(input.trim().toLowerCase())) {
-            setIngredients([...ingredients, input.trim().toLowerCase()]);
-            setInput("");
+    function parseCList(str: string): string[] {
+        if (!str) return [];
+        str = str.trim();
+        if (str.startsWith("c(") && str.endsWith(")")) {
+            let inner = str.slice(2, -1).replace(/"/g, "");
+            return inner.split(",").map(s => s.trim()).filter(Boolean);
         }
-    };
-
-    const removeIngredient = (idx: number) => {
-        setIngredients(ingredients.filter((_, i) => i !== idx));
-    };
+        if (str.includes(",")) return str.replace(/"/g, "").split(",").map(s => s.trim()).filter(Boolean);
+        return [str.replace(/"/g, "")];
+    }
 
     const fetchRecipes = async () => {
+        if (!query.trim()) return;
         setLoading(true);
         setError(null);
         setResults([]);
         try {
-            const res = await fetch("http://localhost:8010/suggest_recipes/", {
+            const res = await fetch("http://localhost:8010/find_recipe_by_title/", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ingredients }),
+                body: JSON.stringify({ query }),
             });
             if (!res.ok) throw new Error("Server Error");
             const data = await res.json();
@@ -51,34 +51,15 @@ export default function SuggestorPage() {
         }
     };
 
-    function parseCList(str: string): string[] {
-        if (!str) return [];
-
-        str = str.trim();
-
-        if (str.startsWith("c(") && str.endsWith(")")) {
-            let inner = str.slice(2, -1);
-            inner = inner.replace(/"/g, "");
-
-            return inner.split(",").map(s => s.trim()).filter(Boolean);
-        }
-
-        if (str.includes(","))
-            return str.replace(/"/g, "").split(",").map(s => s.trim()).filter(Boolean);
-
-        return [str.replace(/"/g, "")];
-    }
-
-
     return (
         <main className="min-h-screen bg-background flex flex-col items-center">
-            <div className="w-full max-w-md relative bg-card rounded-2xl shadow-2xl min-h-[calc(100vh-2rem)] p-4 mt-4">
+            <div className="w-full max-w-md relative bg-card rounded-2xl shadow-2xl p-4 mt-4 min-h-[calc(100vh-2rem)]">
 
                 <div className="flex items-center justify-between mb-5">
                     <div>
                         <HamburgerMenu />
                     </div>
-                    <h1 className="flex-1 text-center text-text text-lg font-bold">Recipe Suggestor</h1>
+                    <h1 className="flex-1 text-center text-text text-lg font-bold">Recipe Finder</h1>
                     <div className="text-right">
                         <UserButton />
                     </div>
@@ -89,53 +70,29 @@ export default function SuggestorPage() {
                 </p>
 
 
-                <div className="flex gap-2 mb-2">
+                <div className="flex gap-2 mb-4">
                     <input
                         type="text"
                         className="flex-1 rounded-xl border border-border bg-background px-4 py-2 text-base text-text focus:outline-none"
-                        placeholder="Enter ingredient..."
-                        value={input}
-                        onChange={e => setInput(e.target.value)}
-                        onKeyDown={e => e.key === "Enter" && addIngredient()}
+                        placeholder="Enter meal or recipe name..."
+                        value={query}
+                        onChange={e => setQuery(e.target.value)}
+                        onKeyDown={e => e.key === "Enter" && fetchRecipes()}
                     />
                     <button
-                        onClick={addIngredient}
-                        className="cursor-pointer hover:bg-neutral-900 duration-300 text-white bg-neutral-800 rounded-xl px-4 py-2 font-semibold"
+                        onClick={fetchRecipes}
+                        className="bg-primary text-white rounded-xl px-4 py-2 font-semibold"
+                        disabled={loading || !query.trim()}
                     >
-                        Add
+                        {loading ? "Searching..." : "Search"}
                     </button>
                 </div>
-
-
-                {ingredients.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mb-2">
-                        {ingredients.map((ing, idx) => (
-                            <span key={idx} className="bg-gray-200 text-gray-800 px-3 py-1 rounded-full flex items-center">
-                                {ing}
-                                <button className="ml-2 text-gray-400 hover:text-red-600" onClick={() => removeIngredient(idx)}>
-                                    &times;
-                                </button>
-                            </span>
-                        ))}
-                    </div>
-                )}
-
-
-                <button
-                    onClick={fetchRecipes}
-                    disabled={ingredients.length === 0 || loading}
-                    className="w-full bg-neutral-800 hover:bg-neutral-900 duration-300 text-white font-bold py-3 rounded-xl mt-2 disabled:opacity-50 transition"
-                >
-                    {loading ? "Searching recipes..." : "Show recipes"}
-                </button>
-
 
                 {error && (
                     <div className="bg-red-100 border border-red-400 text-red-800 px-4 py-2 rounded mt-2 text-center">
                         {error}
                     </div>
                 )}
-
 
                 <div className="mt-4 flex flex-col gap-4">
                     {results.length > 0 && (
